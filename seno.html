@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Demostración: Valor Medio - Onda Senoidal</title>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background-color: #f4f4f9; 
+            padding: 20px; 
+            color: #333;
+        }
+        #grafico { 
+            width: 90%; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+        }
+        .panel-controles { 
+            margin-top: 20px; 
+            padding: 20px; 
+            background: white; 
+            display: inline-block; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        }
+        input[type=range] { 
+            width: 300px; 
+            margin: 15px 0;
+            cursor: pointer;
+        }
+        .resultados { 
+            font-size: 1.2em; 
+            margin-top: 10px; 
+        }
+        .destacado {
+            color: #d62728;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h2>Integral del Valor Medio en una Señal Senoidal</h2>
+    <p>Desplaza el control para observar cómo la integral (área) avanza y se cancela al completar el período ($2\pi$).</p>
+    
+    <div id="grafico"></div>
+    
+    <div class="panel-controles">
+        <label for="slider"><strong>Límite de integración ($t$):</strong> <span id="valor-t">0.01</span> radianes</label><br>
+        <input type="range" id="slider" min="0.01" max="6.283185" step="0.05" value="0.01">
+        
+        <div class="resultados">
+            Valor Medio Actual ($V_{dc}$): <span id="valor-medio" class="destacado">0.00 V</span>
+        </div>
+    </div>
+
+    <script>
+        const Vp = 5; // Amplitud pico de 5V
+        const puntos = 200; // Resolución de la curva
+        const x_onda = [];
+        const y_onda = [];
+        
+        // 1. Pre-calcular los puntos de la onda senoidal completa
+        for (let i = 0; i <= puntos; i++) {
+            let x_val = (i / puntos) * 2 * Math.PI;
+            x_onda.push(x_val);
+            y_onda.push(Vp * Math.sin(x_val));
+        }
+
+        // 2. Función principal que redibuja todo al mover el slider
+        function actualizarGrafico(t_limite) {
+            
+            const x_sombreado = [];
+            const y_sombreado = [];
+            
+            // Recolectar puntos solo hasta el límite actual 't'
+            for (let i = 0; i < x_onda.length; i++) {
+                if (x_onda[i] <= t_limite) {
+                    x_sombreado.push(x_onda[i]);
+                    y_sombreado.push(y_onda[i]);
+                }
+            }
+            // Añadir el punto exacto del corte para que el sombreado sea preciso
+            x_sombreado.push(t_limite);
+            y_sombreado.push(Vp * Math.sin(t_limite));
+
+            // 3. Cálculo matemático del valor medio dinámico
+            // Vmed = (1/t) * integral(Vp*sin(x) dx) evaluado de 0 a t
+            // Vmed = (Vp / t) * (1 - cos(t))
+            let valorMedio = 0;
+            if (t_limite > 0) {
+                valorMedio = (Vp / t_limite) * (1 - Math.cos(t_limite));
+            }
+
+            // 4. Configurar las capas visuales (trazos)
+            const trazoPrincipal = {
+                x: x_onda, 
+                y: y_onda, 
+                mode: 'lines', 
+                name: 'v(t) = 5·sin(t)',
+                line: {color: '#1f77b4', width: 3}
+            };
+            
+            const trazoArea = {
+                x: x_sombreado, 
+                y: y_sombreado, 
+                fill: 'tozeroy', // Rellena hasta el eje X (y=0)
+                mode: 'none',
+                name: 'Área Acumulada', 
+                fillcolor: 'rgba(31, 119, 180, 0.4)'
+            };
+
+            const trazoNivelDC = {
+                x: [0, t_limite], 
+                y: [valorMedio, valorMedio], 
+                mode: 'lines',
+                name: 'Nivel Vdc', 
+                line: {color: '#d62728', width: 2, dash: 'dash'}
+            };
+
+            const layout = {
+                xaxis: { title: 'Ángulo (Radianes)', range: [0, 6.5], tickvals: [0, 1.57, 3.14, 4.71, 6.28], ticktext: ['0', 'π/2', 'π', '3π/2', '2π'] },
+                yaxis: { title: 'Tensión (V)', range: [-6, 6] },
+                showlegend: true,
+                margin: { t: 30 }
+            };
+
+            // Dibujar en el navegador
+            Plotly.react('grafico', [trazoPrincipal, trazoArea, trazoNivelDC], layout);
+            
+            // 5. Actualizar los números en pantalla
+            document.getElementById('valor-t').innerText = parseFloat(t_limite).toFixed(2);
+            document.getElementById('valor-medio').innerText = valorMedio.toFixed(2) + ' V';
+        }
+
+        // Detectar los movimientos del control deslizante
+        const slider = document.getElementById('slider');
+        slider.addEventListener('input', function() {
+            actualizarGrafico(parseFloat(this.value));
+        });
+        
+        // Ejecutar por primera vez al cargar la página
+        actualizarGrafico(parseFloat(slider.value));
+    </script>
+</body>
+</html>
